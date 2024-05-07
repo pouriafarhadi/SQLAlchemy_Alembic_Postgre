@@ -4,4 +4,7 @@
     <option name="sdkName" value="Python 3.10 (DB_SQLAlchemy_Alembic_PG)" />
   </component>
   <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.10 (DB_SQLAlchemy_Alembic_PG)" project-jdk-type="Python SDK" />
+  <component name="ViteConfiguration">
+    <option name="mode" value="DISABLED" />
+  </component>
 </project>
