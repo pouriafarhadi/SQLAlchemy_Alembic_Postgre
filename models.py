@@ -41,7 +41,7 @@ class User(Base, TimestampMixin, TableNameMixin):
     # telegram_id: Mapped[int] = mapped_column(BIGINT, primary_key=True)
     telegram_id: Mapped[int_pk]
     fullname: Mapped[str_255]
-    username: Mapped[Optional[str_255]]
+    user_name: Mapped[Optional[str_255]]
     language_code: Mapped[str] = mapped_column(VARCHAR(10))
     referrer_id: Mapped[Optional[user_fk]]
 
