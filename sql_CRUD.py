@@ -1,7 +1,7 @@
 import random
 
 from faker import Faker
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, func, update, delete
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, aliased
 
@@ -107,6 +107,31 @@ class Repo:
         result = self.session.execute(stmt)
         return result.all()
 
+    def get_total_number_of_orders(self):
+        stmt = (
+            select(func.count(Order.order_id), User.fullname)
+            .join(User)
+            .group_by(User.telegram_id)
+        )
+        result = self.session.execute(stmt)
+        return result.all()
+
+    def set_new_referrer(self, user_id: int, referrer_id: int):
+        stmt = (
+            update(User)
+            .where(User.telegram_id == user_id)
+            .values(referrer_id=referrer_id)
+        )
+        self.session.execute(stmt)
+        self.session.commit()
+
+    def delete_user_by_id(self, user_id: int):
+        stmt = delete(User).where(User.telegram_id == user_id)
+        self.session.execute(stmt)
+        self.session.commit()
+
+
+
 
 # def seed_fake_data(repo: Repo):
 #     Faker.seed(0)  # using seed(0) to generate the same data everytime
@@ -165,7 +190,7 @@ if __name__ == '__main__':
         database=env.str("POSTGRES_DB"),
     ).render_as_string(hide_password=False)
 
-    engine = create_engine(url, echo=True)
+    engine = create_engine(url, )
     session_pool = sessionmaker(bind=engine, expire_on_commit=False)
     # with session_pool() as session:
     #     repo = Repo(session=session)
@@ -204,13 +229,21 @@ if __name__ == '__main__':
     #             print(f"    order: {order.order_id}")
     #             for product in order.products:
     #                 print(f"    product: {product.product.title}")
+    # users and their orders and products using function
+    # with session_pool() as session:
+    #     repo = Repo(session)
+    #
+    #     user_orders = repo.get_all_user_orders(telegram_id=4969)
+    #     for order, user, product, quantity in user_orders:
+    #         print(f"Order: {order.order_id} - {user.fullname} - {product.title} - amound: {quantity}")
 
+
+    # with session_pool() as session:
+    #     repo = Repo(session)
+    #     number_of_orders = repo.get_total_number_of_orders()
+    #     for number_of_order, full_name in number_of_orders:
+    #         print(f"Total number of orders : {number_of_order} by {full_name}")
     with session_pool() as session:
         repo = Repo(session)
-
-        user_orders = repo.get_all_user_orders(telegram_id=4969)
-        for order, user, product, quantity in user_orders:
-            print(f"Order: {order.order_id} - {user.fullname} - {product.title} - amound: {quantity}")
-
-
-
+        # repo.set_new_referrer(user_id=1, referrer_id=2)
+        # repo.delete_user_by_id(1)
