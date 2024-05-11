@@ -3,7 +3,7 @@ import random
 from faker import Faker
 from sqlalchemy import select, or_
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from models import User, Order, Product, OrderProduct
 
@@ -41,16 +41,16 @@ class Repo:
 
     def get_all_users(self):
         stmt = select(
-            User
-        ).where(
-            or_(User.language_code == 'en', User.language_code == 'fa'),
-            User.user_name.ilike("pouria"),
-            User.telegram_id > 0  # Replace 'having' with 'where' --> '.having(User.telegram_id > 0)'
-        ).order_by(
-            User.created_at.desc()
-        ).limit(
-            10
-        )
+            User).order_by(User.created_at.asc())
+        # ).where(
+        #     or_(User.language_code == 'en', User.language_code == 'fa'),
+        #     User.user_name.ilike("pouria"),
+        #     User.telegram_id > 0  # Replace 'having' with 'where' --> '.having(User.telegram_id > 0)'
+        # ).order_by(
+        #     User.created_at.desc()
+        # ).limit(
+        #     10
+        # )
         result = self.session.execute(stmt)
         return result.scalars().all()
 
@@ -80,45 +80,72 @@ class Repo:
         self.session.execute(stmt)
         self.session.commit()
 
+    def select_all_invited_users(self):
+        ParentUser = aliased(User)
+        RefferralUser = aliased(User)
+        stmt = (select(
+            ParentUser.fullname.label("parent_name"),
+            RefferralUser.fullname.label("refferal_name"))
+        .join(
+            RefferralUser, RefferralUser.referrer_id == ParentUser.telegram_id
+        )
+        .where(
+            # ParentUser.referrer_id.isnot(None)
+        ))
+        result = self.session.execute(stmt)
+        return result.all()
 
-def seed_fake_data(repo: Repo):
-    Faker.seed(0)  # using seed(0) to generate the same data everytime
-    faker = Faker()
-    users = []
-    orders = []
-    products = []
-    for i in range(10):
-        referrer_id = None if not users else users[-1].telegram_id
-        user = repo.add_user(
-            telegram_id=faker.pyint(),
-            fullname=faker.name(),
-            language_code=faker.language_code(),
-            user_name=faker.user_name(),
-            referrer_id=referrer_id,
-        )
-        users.append(user)
-    for i in range(10):
-        order = repo.add_order(
-            user_id=random.choice(users).telegram_id,
-        )
-        orders.append(order)
 
-    # add products
-    for i in range(10):
-        product = repo.add_product(
-            title=faker.word(),
-            description=faker.sentence(),
-            price=faker.pyint(),
+    def get_all_user_orders(self, telegram_id: int):
+        stmt = (
+            select(Order, User, Product, OrderProduct.quantity)
+            .join(User.orders)
+            .join(Order.products)
+            .join(Product)
+            .where(User.telegram_id == telegram_id)
         )
-        products.append(product)
-    # add products to orders
-    for order in orders:
-        for product in products:
-            repo.add_product_to_order(
-                order_id=order.order_id,
-                product_id=product.product_id,
-                quantity=faker.pyint(),
-            )
+        result = self.session.execute(stmt)
+        return result.all()
+
+
+# def seed_fake_data(repo: Repo):
+#     Faker.seed(0)  # using seed(0) to generate the same data everytime
+#     faker = Faker()
+#     users = []
+#     orders = []
+#     products = []
+#     for i in range(10):
+#         referrer_id = None if not users else users[-1].telegram_id
+#         user = repo.add_user(
+#             telegram_id=faker.pyint(),
+#             fullname=faker.name(),
+#             language_code=faker.language_code(),
+#             user_name=faker.user_name(),
+#             referrer_id=referrer_id,
+#         )
+#         users.append(user)
+#     for i in range(10):
+#         order = repo.add_order(
+#             user_id=random.choice(users).telegram_id,
+#         )
+#         orders.append(order)
+#
+#     # add products
+#     for i in range(10):
+#         product = repo.add_product(
+#             title=faker.word(),
+#             description=faker.sentence(),
+#             price=faker.pyint(),
+#         )
+#         products.append(product)
+#     # add products to orders
+#     for order in orders:
+#         for product in products:
+#             repo.add_product_to_order(
+#                 order_id=order.order_id,
+#                 product_id=product.product_id,
+#                 quantity=faker.pyint(),
+#             )
 
 
 if __name__ == '__main__':
@@ -159,7 +186,31 @@ if __name__ == '__main__':
     #               language_code='en',
     #               user_name='aliJ')
     # adding fake data
+    # with session_pool() as session:
+    #     repo = Repo(session)
+    #     seed_fake_data(repo)
+    #     # todo: learning how to create migration that could be inserting data in database
+    # referral users and so on
+    # with session_pool() as session:
+    #     repo = Repo(session)
+    # for row in repo.select_all_invited_users():
+    #     print(f"parent : {row.parent_name} | Referral: {row.refferal_name}")
+    # select user with related orders and products
+    # with session_pool() as session:
+    #     repo = Repo(session)
+    #     for user in repo.get_all_users():
+    #         print(f"User: {user.fullname}({user.telegram_id})")
+    #         for order in user.orders:
+    #             print(f"    order: {order.order_id}")
+    #             for product in order.products:
+    #                 print(f"    product: {product.product.title}")
+
     with session_pool() as session:
         repo = Repo(session)
-        seed_fake_data(repo)
-        # todo: learning how to create migration that could be inserting data in database
+
+        user_orders = repo.get_all_user_orders(telegram_id=4969)
+        for order, user, product, quantity in user_orders:
+            print(f"Order: {order.order_id} - {user.fullname} - {product.title} - amound: {quantity}")
+
+
+

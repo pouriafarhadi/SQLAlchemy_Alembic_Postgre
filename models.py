@@ -45,19 +45,28 @@ class User(Base, TimestampMixin, TableNameMixin):
     language_code: Mapped[str] = mapped_column(VARCHAR(10))
     referrer_id: Mapped[Optional[user_fk]]
 
+    orders: Mapped[list["Order"]] = relationship(back_populates='user')
+
 
 class Product(Base, TableNameMixin, TimestampMixin):
     product_id: Mapped[int_pk]
     title: Mapped[str_255]
-    description : Mapped[Optional[str]] = mapped_column(VARCHAR(3000))
+    description: Mapped[Optional[str]] = mapped_column(VARCHAR(3000))
     price: Mapped[float] = mapped_column(DECIMAL(precision=16, scale=4))
+
 
 class Order(Base, TableNameMixin, TimestampMixin):
     order_id: Mapped[int_pk]
     user_id: Mapped[user_fk]
 
+    products: Mapped[list["OrderProduct"]] = relationship()
+    user: Mapped["User"] = relationship(back_populates="orders")
+
 
 class OrderProduct(Base, TableNameMixin):
     order_id: Mapped[int] = mapped_column(Integer, ForeignKey("orders.order_id", ondelete="CASCADE"), primary_key=True)
-    product_id: Mapped[int] = mapped_column(Integer, ForeignKey('products.product_id', ondelete="CASCADE"),primary_key=True)
+    product_id: Mapped[int] = mapped_column(Integer, ForeignKey('products.product_id', ondelete="CASCADE"),
+                                            primary_key=True)
     quantity: Mapped[int]
+
+    product: Mapped["Product"] = relationship()
